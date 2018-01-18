@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: nagger
+
+  main:
+    banner-mode: "off"
+    web-environment: false
+
+  output:
+    ansi:
+      enabled: always
+
+logging:
+  level:
+    com.traiana.nagger: INFO
+
+traiana:
+  grpc:
+    port: 5050
+    ops-port: 5060

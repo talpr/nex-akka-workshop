@@ -1,0 +1,74 @@
+apply from: "$rootDir/versions.gradle"
+group 'com.traiana.nagger'
+version '0.1.0-SNAPSHOT'
+
+buildscript {
+  repositories {
+    mavenLocal()
+    mavenCentral()
+  }
+}
+
+def children = subprojects.findAll { it.childProjects.isEmpty() }
+project.configure(children) { proj ->
+  group rootProject.group
+  version rootProject.version
+
+  buildscript {
+    repositories {
+      mavenLocal()
+      mavenCentral()
+    }
+  }
+
+  apply plugin: 'maven'
+  apply plugin: 'java'
+
+  sourceCompatibility = 1.8
+  targetCompatibility = 1.8
+
+  tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = [
+        "-deprecation",
+        "-unchecked",
+        "-encoding", "utf8",
+        "-target:jvm-${sourceCompatibility}".toString(),
+        "-Xlog-reflective-calls",
+        "-feature",
+        "-language:postfixOps",
+        "-language:implicitConversions",
+        "-language:existentials"
+    ]
+  }
+
+  task srcJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+  }
+
+  artifacts {
+    archives srcJar
+  }
+
+  jar.manifest {
+    attributes(
+        'Implementation-Title': proj.name,
+        'Implementation-Version': "${version}",
+        'Implementation-Vendor': 'Traiana')
+  }
+
+  repositories {
+    mavenLocal()
+    mavenCentral()
+  }
+
+  proj.afterEvaluate {
+    if (proj.pluginManager.hasPlugin('scala')) {
+      proj.archivesBaseName = "${proj.name}_${ver.scalaBase}"
+    }
+  }
+}
+
+task clean(type: Delete) {
+  project.delete(buildDir)
+}

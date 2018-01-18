@@ -1,0 +1,44 @@
+buildscript {
+  dependencies {
+    classpath "org.springframework.boot:spring-boot-gradle-plugin:$ver.boot"
+    classpath "com.traiana.kit:gradle-protobuf-plugin:$ver.kitGradle"
+    classpath "com.diffplug.spotless:spotless-plugin-gradle:$ver.spotless"
+  }
+}
+
+apply plugin: 'scala'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'com.traiana.kit.protobuf'
+apply plugin: 'com.diffplug.gradle.spotless'
+
+dependencies {
+  protobuf project(':api')
+
+  compile "com.trueaccord.scalapb:scalapb-runtime_$ver.scalaBase:$ver.scalapb"
+  compile "com.trueaccord.scalapb:scalapb-runtime-grpc_$ver.scalaBase:$ver.scalapb"
+  compile "com.typesafe.akka:akka-actor_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-cluster-metrics_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-cluster-sharding_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-cluster-tools_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-cluster_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-persistence-cassandra_$ver.scalaBase:$ver.akkaPersistenceCassandra"
+  compile "com.typesafe.akka:akka-persistence_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-stream-kafka_$ver.scalaBase:$ver.akkaStreamKafka"
+  compile "com.typesafe.akka:akka-stream_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-typed_$ver.scalaBase:$ver.akka"
+  compile "com.traiana.kit:machinery-interop_$ver.scalaBase:$ver.machinery"
+  compile "com.traiana.kit:spring-boot-starter-grpc_$ver.scalaBase:$ver.kitLibs"
+
+  compileOnly "org.scala-lang:scala-compiler:$ver.scala"
+}
+
+spotless {
+  scala {
+    scalafmt(ver.scalafmt).configFile("$rootDir/.scalafmt.conf")
+    target 'src/**/*.scala'
+  }
+}
+
+build {
+  dependsOn 'spotlessApply'
+}

@@ -1,0 +1,5 @@
+rootProject.name = 'nagger'
+
+include 'api'
+include 'server'
+include 'client'
