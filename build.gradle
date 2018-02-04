@@ -60,6 +60,9 @@ project.configure(children) { proj ->
   repositories {
     mavenLocal()
     mavenCentral()
+    maven {
+      url "https://repo.akka.io/snapshots/"
+    }
   }
 
   proj.afterEvaluate {

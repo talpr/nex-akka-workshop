@@ -28,8 +28,8 @@ dependencies {
   compile "com.typesafe.akka:akka-slf4j_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-stream-kafka_$ver.scalaBase:$ver.akkaStreamKafka"
   compile "com.typesafe.akka:akka-stream_$ver.scalaBase:$ver.akka"
-  compile "com.typesafe.akka:akka-actor-typed_$ver.scalaBase:$ver.akka"
-  compile "com.typesafe.akka:akka-persistence-typed_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-actor-typed_$ver.scalaBase:$ver.akkaTyped"
+  compile "com.typesafe.akka:akka-persistence-typed_$ver.scalaBase:$ver.akkaTyped"
   compile "com.traiana.kit:machinery-interop_$ver.scalaBase:$ver.machinery"
   compile "com.traiana.kit:spring-boot-starter-grpc_$ver.scalaBase:$ver.kitLibs"
 

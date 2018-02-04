@@ -1,8 +1,8 @@
 package com.traiana.nagger.akka
 
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.persistence.typed.scaladsl.PersistentActor
-import akka.persistence.typed.scaladsl.PersistentActor.{CommandHandler, Effect}
+import akka.persistence.typed.scaladsl.PersistentBehaviors
+import akka.persistence.typed.scaladsl.PersistentBehaviors.{CommandHandler, Effect}
 import com.traiana.nagger.{Nickname, Password, User}
 
 object UserDetailsActor {
@@ -32,9 +32,9 @@ object UserDetailsActor {
   final case class UserRegistered(det: UserDetails) extends Event
 
   def apply(): Behavior[Command] =
-    PersistentActor.immutable("user-details-actor", State(), commandHandler, eventHandler)
+    PersistentBehaviors.immutable("user-details-actor", State(), commandHandler, eventHandler)
 
-  private val commandHandler = CommandHandler[Command, Event, State] {
+  private val commandHandler: CommandHandler[Command, Event, State] = {
     case (_, s, RegisterUser(det, to)) if s.users contains det.user =>
       Effect.none
         .andThen(to ! Failed(det.user))

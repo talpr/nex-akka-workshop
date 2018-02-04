@@ -4,7 +4,7 @@ import java.time.Instant
 
 import akka.Done
 import akka.event.Logging
-import akka.actor.typed.scaladsl.{Actor, ActorContext}
+import akka.actor.typed.scaladsl.{Behaviors, ActorContext}
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef, Behavior}
 import com.traiana.nagger.{Channel, Nickname}
@@ -49,14 +49,14 @@ object ChannelManagerActor {
   def apply(): Behavior[Command] = uninitialized
 
   private val uninitialized: Behavior[Command] = {
-    Actor.immutable {
+    Behaviors.immutable {
       case (_, r: SetApiActor) =>
         behavior(r.apiActor)
       case (ctx, cmd) =>
         // BAD! shouldn't create log for each message, but this should be a rare case and i'm too lazy
         val log = Logging(ctx.system.toUntyped, ctx.self.toUntyped)
         log.warning("received message {} while uninitialized, ignoring", cmd)
-        Actor.same
+        Behaviors.same
     }
   }
 
@@ -71,7 +71,7 @@ object ChannelManagerActor {
       channels.get(channel) match {
         case Some(ch) =>
           f(ch)
-          Actor.same
+          Behaviors.same
         case None =>
           val ch    = ctx.spawn(ChannelActor(channel, ctx.self), s"channel-$channel")
           val chans = channels + (channel -> ch)
@@ -101,10 +101,10 @@ object ChannelManagerActor {
         apiActor ! m
       }
 
-      Actor.same
+      Behaviors.same
     }
 
-    Actor.immutable {
+    Behaviors.immutable {
       case (ctx, r: Join) =>
         join(r)(ctx)
       case (ctx, r: Leave) =>
@@ -116,7 +116,7 @@ object ChannelManagerActor {
 
       // ignore
       case (_, _: SetApiActor) =>
-        Actor.same
+        Behaviors.same
     }
   }
 }
