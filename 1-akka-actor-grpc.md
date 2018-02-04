@@ -26,9 +26,8 @@ creating the actors that implement all the logic and interact with the gRpc code
 Walk-through:
 -------------
 * Set up Spring Boot and the gRpc server:
-    - Write a `Nagger` "main class" that starts the Spring application and annotate it with `@SpringBootApplication`.
-    - Write a `NaggerService` "stub" class that extends the generated `NaggerService` class and `BindableService`.
-      Annotate it with `@Service` and `@GrpcService`, and implement its `bindService` method.
+    - Write a `NaggerService` "stub" class that extends the generated `NaggerGrpc.Nagger` class and `BindableService`.
+      Annotate it with `@GrpcService`, and implement its `bindService` method.
     - Run your server. Try to connect to it with the provided client.
 * Create an `ApiActor` class that will handle the commands coming in from the Service. For commands that have a token,
   the actor should first validate the token (with the `LoginActor`) and obtain the client's nickname before "handling"
