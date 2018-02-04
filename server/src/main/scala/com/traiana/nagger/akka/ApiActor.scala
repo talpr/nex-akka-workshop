@@ -5,7 +5,7 @@ import java.time.Instant
 import akka.Done
 import akka.actor.Scheduler
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.scaladsl.{Actor, ActorContext}
+import akka.actor.typed.scaladsl.{Behaviors, ActorContext}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.util.Timeout
 import com.google.protobuf.empty.Empty
@@ -116,7 +116,7 @@ object ApiActor {
         case Failure(t)     => replyTo ! failed(t.getMessage)
       }
 
-      Actor.same
+      Behaviors.same
     }
 
     def login(req: LoginRequest, replyTo: ActorRef[LoginRegisterResponse])(
@@ -133,7 +133,7 @@ object ApiActor {
         case Failure(t)     => replyTo ! failed(t.getMessage)
       }
 
-      Actor.same
+      Behaviors.same
     }
 
     def joinLeave(req: JoinLeaveRequest, replyTo: ActorRef[Empty])(ctx: ActorContext[_]): Behavior[Command] = {
@@ -150,7 +150,7 @@ object ApiActor {
       } yield Empty()
       f.foreach(replyTo.!)
 
-      Actor.same
+      Behaviors.same
     }
 
     def message(req: MessageRequest, replyTo: ActorRef[Empty])(ctx: ActorContext[_]): Behavior[Command] = {
@@ -165,7 +165,7 @@ object ApiActor {
       } yield Empty()
       f.foreach(replyTo.!)
 
-      Actor.same
+      Behaviors.same
     }
 
     def listen(req: ListenRequest, obs: StreamObserver[ListenEvent])(ctx: ActorContext[Command]): Behavior[Command] = {
@@ -178,7 +178,7 @@ object ApiActor {
       } yield Validated(nick, obs)
       f.foreach(ctx.self.!)
 
-      Actor.same
+      Behaviors.same
     }
 
     def notify(r: Notify): Behavior[Command] = {
@@ -191,7 +191,7 @@ object ApiActor {
         )
         l.onNext(le)
       }
-      Actor.same
+      Behaviors.same
     }
 
     def validated(r: Validated): Behavior[Command] = {
@@ -199,7 +199,7 @@ object ApiActor {
       behavior(loginActor, detailsActor, channelManager, ls)
     }
 
-    Actor.immutable {
+    Behaviors.immutable {
       // api commands
       case (ctx, Register(r, to)) =>
         register(r, to)(ctx)

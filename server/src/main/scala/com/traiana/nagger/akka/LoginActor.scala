@@ -2,9 +2,13 @@ package com.traiana.nagger.akka
 
 import java.util.UUID
 
-import akka.actor.typed.scaladsl.{Actor, ActorContext}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import akka.util.Timeout
 import com.traiana.nagger.{Nickname, Password, Token, User}
+
+import scala.concurrent.duration._
+import scala.util.Success
 
 object LoginActor {
   def login(user: User, pw: Password): ActorRef[LoginResponse] => Login =
@@ -45,13 +49,17 @@ object LoginActor {
         case Some(nick) => r.replyTo ! TokenValid(r.token, nick)
         case _          => r.replyTo ! TokenInvalid(r.token)
       }
-      Actor.same
+      Behaviors.same
     }
 
     def login(r: Login)(ctx: ActorContext[Command]): Behavior[Command] = {
-      val adapter = ctx.spawnAdapter(resultToHandle(r.replyTo))
-      detailsActor ! UserDetailsActor.login(r.user, r.password)(adapter)
-      Actor.same
+      implicit val timeout = Timeout(5.seconds)
+      ctx.ask(detailsActor)(UserDetailsActor.login(r.user, r.password)) {
+        case Success(UserDetailsActor.Succeeded(u, nick)) => HandleLoggedIn(nick, r.replyTo)
+        case _                                            => HandleFailedLogIn(r.user, r.replyTo)
+      }
+
+      Behaviors.same
     }
 
     def handleLoggedIn(r: HandleLoggedIn): Behavior[Command] = {
@@ -63,10 +71,10 @@ object LoginActor {
 
     def handleFailed(r: HandleFailedLogIn): Behavior[Command] = {
       r.replyTo ! LoginFailed(r.user)
-      Actor.same
+      Behaviors.same
     }
 
-    Actor.immutable {
+    Behaviors.immutable {
       case (ctx, r: Login)           => login(r)(ctx)
       case (_, r: HandleLoggedIn)    => handleLoggedIn(r)
       case (_, r: HandleFailedLogIn) => handleFailed(r)
