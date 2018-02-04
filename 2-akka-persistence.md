@@ -19,11 +19,9 @@ Solution Walk-through:
     - Set the journal and snapshot-store to auto-start.
 * Run the Cassandra Docker (or use the provided `docker-compose`).
 * Run the server to allow the persistence plugin to create the keyspace in Cassandra.
-* Make your `UserDetailsActor` persistent and add the user management functionality:
-    - Keep user information in memory.
-    - When a new user registers, make sure it doesn't exist already. If it doesn't, persist the data and update state.
-    - When a user tries to log-in, check the state in-memory.
+* Make your `UserDetailsActor` persistent, and persist user registration events.
 * Make your `ChannelActor` persistent, and persist users' join/leave events.
-* Make your `ChannelManagerActor` persist channel creation events, and create the channels when recovering.
 * Make your `ChannelActor` persist all messages sent to the channel. Whenever a user joins the channel for the first
     time replay the channel history for them.
+* Make your `ChannelManagerActor` persist channel creation events, and create the channels when recovering. What would
+    happen if we don't do this?
