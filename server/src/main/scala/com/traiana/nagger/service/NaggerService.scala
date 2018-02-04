@@ -1,8 +1,8 @@
 package com.traiana.nagger.service
 
 import akka.actor.ActorSystem
-import akka.typed.scaladsl.AskPattern._
-import akka.typed.scaladsl.adapter._
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.scaladsl.adapter._
 import com.google.protobuf.empty.Empty
 import com.traiana.kit.boot.grpc.GrpcService
 import com.traiana.kit.machinery.interop

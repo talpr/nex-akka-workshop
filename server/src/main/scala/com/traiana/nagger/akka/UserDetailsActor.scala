@@ -1,7 +1,8 @@
 package com.traiana.nagger.akka
 
-import akka.typed.scaladsl.Actor
-import akka.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.persistence.typed.scaladsl.PersistentActor
+import akka.persistence.typed.scaladsl.PersistentActor.{CommandHandler, Effect}
 import com.traiana.nagger.{Nickname, Password, User}
 
 object UserDetailsActor {
@@ -25,26 +26,34 @@ object UserDetailsActor {
   final case class Succeeded(user: User, nickname: Nickname) extends Result
   final case class Failed(user: User)                        extends Result
 
-  def apply(): Behavior[Command] = behavior(Map.empty)
+  final case class State(users: Map[User, UserDetails] = Map.empty)
 
-  private def behavior(users: Map[User, UserDetails]): Behavior[Command] =
-    Actor.immutable {
-      case (_, RegisterUser(det, to)) if users contains det.user =>
-        to ! Failed(det.user)
-        Actor.same
+  sealed trait Event
+  final case class UserRegistered(det: UserDetails) extends Event
 
-      case (_, RegisterUser(det, to)) =>
-        to ! Succeeded(det.user, det.nickname)
-        val updated = users + (det.user -> det)
-        behavior(updated)
+  def apply(): Behavior[Command] =
+    PersistentActor.immutable("user-details-actor", State(), commandHandler, eventHandler)
 
-      case (_, LoginUser(user, pw, to)) =>
-        users.get(user).map(_.password) match {
-          case Some(`pw`) =>
-            to ! Succeeded(user, users(user).nickname)
-          case _ =>
-            to ! Failed(user)
-        }
-        Actor.same
-    }
+  private val commandHandler = CommandHandler[Command, Event, State] {
+    case (_, s, RegisterUser(det, to)) if s.users contains det.user =>
+      Effect.none
+        .andThen(to ! Failed(det.user))
+
+    case (_, _, RegisterUser(det, to)) =>
+      Effect
+        .persist(UserRegistered(det))
+        .andThen(to ! Succeeded(det.user, det.nickname))
+
+    case (_, s, LoginUser(user, pw, to)) =>
+      val resp = s.users.get(user).map(_.password) match {
+        case Some(`pw`) => Succeeded(user, s.users(user).nickname)
+        case _          => Failed(user)
+      }
+      Effect.none
+        .andThen(to ! resp)
+  }
+
+  private val eventHandler: (State, Event) => State = {
+    case (s, UserRegistered(det)) => State(s.users + (det.user -> det))
+  }
 }

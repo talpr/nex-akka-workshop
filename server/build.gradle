@@ -24,9 +24,12 @@ dependencies {
   compile "com.typesafe.akka:akka-persistence-cassandra_$ver.scalaBase:$ver.akkaPersistenceCassandra"
   compile "com.github.dnvriend:akka-persistence-inmemory_$ver.scalaBase:$ver.akkaPersistenceInmemory"
   compile "com.typesafe.akka:akka-persistence_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-persistence-query_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-slf4j_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-stream-kafka_$ver.scalaBase:$ver.akkaStreamKafka"
   compile "com.typesafe.akka:akka-stream_$ver.scalaBase:$ver.akka"
-  compile "com.typesafe.akka:akka-typed_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-actor-typed_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-persistence-typed_$ver.scalaBase:$ver.akka"
   compile "com.traiana.kit:machinery-interop_$ver.scalaBase:$ver.machinery"
   compile "com.traiana.kit:spring-boot-starter-grpc_$ver.scalaBase:$ver.kitLibs"
 
