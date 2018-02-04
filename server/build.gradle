@@ -22,6 +22,7 @@ dependencies {
   compile "com.typesafe.akka:akka-cluster-tools_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-cluster_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-persistence-cassandra_$ver.scalaBase:$ver.akkaPersistenceCassandra"
+  compile "com.github.dnvriend:akka-persistence-inmemory_$ver.scalaBase:$ver.akkaPersistenceInmemory"
   compile "com.typesafe.akka:akka-persistence_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-stream-kafka_$ver.scalaBase:$ver.akkaStreamKafka"
   compile "com.typesafe.akka:akka-stream_$ver.scalaBase:$ver.akka"
