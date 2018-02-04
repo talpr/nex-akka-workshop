@@ -3,8 +3,9 @@ package com.traiana.nagger.akka
 import java.time.Instant
 
 import akka.Done
-import akka.typed.scaladsl.Actor
-import akka.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.persistence.typed.scaladsl.PersistentActor
+import akka.persistence.typed.scaladsl.PersistentActor.{CommandHandler, Effect}
 import com.traiana.nagger.{Channel, Nickname}
 
 object ChannelActor {
@@ -18,37 +19,48 @@ object ChannelActor {
   def leave(nick: Nickname, replyTo: ActorRef[Done]): Command                = Leave(nick, replyTo)
   def message(nick: Nickname, msg: String, replyTo: ActorRef[Done]): Command = Message(nick, msg, replyTo)
 
+  final case class State(joined: Set[Nickname] = Set.empty, history: Vector[MessagePosted] = Vector.empty)
+
+  sealed trait Event
+  final case class UserJoined(nick: Nickname)                                extends Event
+  final case class UserLeft(nick: Nickname)                                  extends Event
+  final case class MessagePosted(nick: Nickname, msg: String, when: Instant) extends Event
+
   def apply(name: Channel, channelMgr: ActorRef[ChannelManagerActor.Command]): Behavior[Command] =
-    behavior(name, channelMgr)
+    PersistentActor.immutable(s"channel-actor-$name", State(), commandHandler(name, channelMgr), eventHandler)
 
-  private def behavior(
-    channel: Channel,
-    channelMgr: ActorRef[ChannelManagerActor.Command],
-    joined: Set[Nickname] = Set.empty
-  ): Behavior[Command] = {
-    def join(r: Join): Behavior[Command] = {
-      val j = joined + r.nick
-      r.replyTo ! Done
-      behavior(channel, channelMgr, j)
+  private def commandHandler(channel: Channel, channelMgr: ActorRef[ChannelManagerActor.Command]) =
+    CommandHandler[Command, Event, State] {
+      case (_, s, Join(nick, to)) =>
+        Effect
+          .persist(UserJoined(nick))
+          .andThen {
+            to ! Done
+            s.history.foreach { mp =>
+              val m = ChannelManagerActor.notifyClients(Set(nick), channel, mp.nick, mp.when, mp.msg)
+              channelMgr ! m
+            }
+          }
+
+      case (_, _, Leave(nick, to)) =>
+        Effect
+          .persist(UserLeft(nick))
+          .andThen(to ! Done)
+
+      case (_, s, Message(nick, msg, to)) =>
+        val when = Instant.now()
+        val m    = ChannelManagerActor.notifyClients(s.joined, channel, nick, when, msg)
+        Effect
+          .persist(MessagePosted(nick, msg, when))
+          .andThen {
+            channelMgr ! m
+            to ! Done
+          }
     }
 
-    def leave(r: Leave): Behavior[Command] = {
-      val j = joined - r.nick
-      r.replyTo ! Done
-      behavior(channel, channelMgr, j)
-    }
-
-    def message(r: Message): Behavior[Command] = {
-      val m = ChannelManagerActor.notifyClients(joined, channel, r.nick, Instant.now(), r.msg)
-      channelMgr ! m
-      r.replyTo ! Done
-      Actor.same
-    }
-
-    Actor.immutable {
-      case (_, r: Join)    => join(r)
-      case (_, r: Leave)   => leave(r)
-      case (_, r: Message) => message(r)
-    }
+  private val eventHandler: (State, Event) => State = {
+    case (s, UserJoined(nick)) => s.copy(joined = s.joined + nick)
+    case (s, UserLeft(nick))   => s.copy(joined = s.joined - nick)
+    case (s, m: MessagePosted) => s.copy(history = s.history :+ m)
   }
 }

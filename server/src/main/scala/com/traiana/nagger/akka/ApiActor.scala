@@ -4,9 +4,9 @@ import java.time.Instant
 
 import akka.Done
 import akka.actor.Scheduler
-import akka.typed.scaladsl.AskPattern._
-import akka.typed.scaladsl.{Actor, ActorContext}
-import akka.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.scaladsl.{Actor, ActorContext}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.util.Timeout
 import com.google.protobuf.empty.Empty
 import Validators._

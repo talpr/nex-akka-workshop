@@ -4,9 +4,9 @@ import java.time.Instant
 
 import akka.Done
 import akka.event.Logging
-import akka.typed.scaladsl.{Actor, ActorContext}
-import akka.typed.scaladsl.adapter._
-import akka.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{Actor, ActorContext}
+import akka.actor.typed.scaladsl.adapter._
+import akka.actor.typed.{ActorRef, Behavior}
 import com.traiana.nagger.{Channel, Nickname}
 
 object ChannelManagerActor {

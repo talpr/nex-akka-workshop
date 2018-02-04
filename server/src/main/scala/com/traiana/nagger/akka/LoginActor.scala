@@ -2,8 +2,8 @@ package com.traiana.nagger.akka
 
 import java.util.UUID
 
-import akka.typed.scaladsl.{Actor, ActorContext}
-import akka.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{Actor, ActorContext}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.traiana.nagger.{Nickname, Password, Token, User}
 
 object LoginActor {
