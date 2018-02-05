@@ -22,7 +22,6 @@ object ChannelManagerActor {
   def message(nick: Nickname, channel: Channel, msg: String): ActorRef[Done] => Command =
     Message(nick, channel, msg, _)
 
-  def setApiActor(apiActor: ActorRef[ApiActor.Command]): Command = SetApiActor(apiActor)
   def notifyClients(
     clients: Set[Nickname],
     channel: Channel,
@@ -37,7 +36,6 @@ object ChannelManagerActor {
   final case class Leave(nick: Nickname, channel: Channel, replyTo: ActorRef[Done])                extends Command
   final case class Message(nick: Nickname, channel: Channel, msg: String, replyTo: ActorRef[Done]) extends Command
 
-  private[akka] final case class SetApiActor(apiActor: ActorRef[ApiActor.Command]) extends Command
   private[akka] final case class NotifyClients(
     clients: Set[Nickname],
     channel: Channel,
@@ -46,19 +44,7 @@ object ChannelManagerActor {
     msg: String
   ) extends Command
 
-  def apply(): Behavior[Command] = uninitialized
-
-  private val uninitialized: Behavior[Command] = {
-    Behaviors.immutable {
-      case (_, r: SetApiActor) =>
-        behavior(r.apiActor)
-      case (ctx, cmd) =>
-        // BAD! shouldn't create log for each message, but this should be a rare case and i'm too lazy
-        val log = Logging(ctx.system.toUntyped, ctx.self.toUntyped)
-        log.warning("received message {} while uninitialized, ignoring", cmd)
-        Behaviors.same
-    }
-  }
+  def apply(apiActor: ActorRef[ApiActor.Command]): Behavior[Command] = behavior(apiActor)
 
   private def behavior(
     apiActor: ActorRef[ApiActor.Command],
@@ -73,6 +59,7 @@ object ChannelManagerActor {
           f(ch)
           Behaviors.same
         case None =>
+          ctx.log.info("spawning new channel {}", channel)
           val ch    = ctx.spawn(ChannelActor(channel, ctx.self), s"channel-$channel")
           val chans = channels + (channel -> ch)
           f(ch)
@@ -113,10 +100,6 @@ object ChannelManagerActor {
         message(r)(ctx)
       case (_, r: NotifyClients) =>
         notify(r)
-
-      // ignore
-      case (_, _: SetApiActor) =>
-        Behaviors.same
     }
   }
 }

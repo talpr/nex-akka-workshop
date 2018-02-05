@@ -57,11 +57,13 @@ object ApiActor {
   case object LoginFailed        extends ApiError("login-failed")
   case object InvalidToken       extends ApiError("invalid-token")
 
-  def apply(
-    loginActor: ActorRef[LoginActor.Command],
-    detailsActor: ActorRef[UserDetailsActor.Command],
-    channelManagerActor: ActorRef[ChannelManagerActor.Command]
-  ): Behavior[Command] = behavior(loginActor, detailsActor, channelManagerActor)
+  def apply(): Behavior[Command] =
+    Behaviors.deferred { ctx =>
+      val detailsActor = ctx.spawn(UserDetailsActor(), "user-details-actor")
+      val loginActor   = ctx.spawn(LoginActor(detailsActor), "login-actor")
+      val channelMgr   = ctx.spawn(ChannelManagerActor(ctx.self), "channel-manager-actor")
+      behavior(loginActor, detailsActor, channelMgr)
+    }
 
   private def behavior(
     loginActor: ActorRef[LoginActor.Command],
@@ -112,8 +114,12 @@ object ApiActor {
       } yield token
 
       f.onComplete {
-        case Success(token) => replyTo ! succeeded(token)
-        case Failure(t)     => replyTo ! failed(t.getMessage)
+        case Success(token) =>
+          ctx.log.info("{} registered successfully", req.username)
+          replyTo ! succeeded(token)
+        case Failure(t)     =>
+          ctx.log.info("{} failed to register", req.username)
+          replyTo ! failed(t.getMessage)
       }
 
       Behaviors.same
@@ -129,8 +135,12 @@ object ApiActor {
       } yield token
 
       f.onComplete {
-        case Success(token) => replyTo ! succeeded(token)
-        case Failure(t)     => replyTo ! failed(t.getMessage)
+        case Success(token) =>
+          ctx.log.info("{} logged in successfully", req.username)
+          replyTo ! succeeded(token)
+        case Failure(t)     =>
+          ctx.log.info("{} failed to log in", req.username)
+          replyTo ! failed(t.getMessage)
       }
 
       Behaviors.same
@@ -147,8 +157,12 @@ object ApiActor {
         nick                           <- checkToken(tok)
         m                              = ChannelManagerActor.joinLeave(nick, ch, jnl)
         _                              <- channelManager ? m
-      } yield Empty()
-      f.foreach(replyTo.!)
+      } yield nick
+
+      f foreach { nick =>
+        ctx.log.info("{} joined/left channel {}", nick, req.channel)
+        replyTo ! Empty()
+      }
 
       Behaviors.same
     }
@@ -162,8 +176,12 @@ object ApiActor {
         nick                         <- checkToken(tok)
         m                            = ChannelManagerActor.message(nick, ch, msg)
         _                            <- channelManager ? m
-      } yield Empty()
-      f.foreach(replyTo.!)
+      } yield nick
+
+      f foreach { nick =>
+        ctx.log.info("posted message by {} to channel {}", nick, req.channel)
+        replyTo ! Empty()
+      }
 
       Behaviors.same
     }
@@ -176,13 +194,18 @@ object ApiActor {
         ListenRequest(tok) <- validate(req)
         nick               <- checkToken(tok)
       } yield Validated(nick, obs)
-      f.foreach(ctx.self.!)
+
+      f foreach { m =>
+        ctx.log.info("validated token for {}, starting to listen", m.nick)
+        ctx.self ! m
+      }
 
       Behaviors.same
     }
 
-    def notify(r: Notify): Behavior[Command] = {
+    def notify(r: Notify)(ctx: ActorContext[Command]): Behavior[Command] = {
       listeners.get(r.to).foreach { l =>
+        ctx.log.info("sending notification to {}", r.to)
         val le = ListenEvent(
           channel = r.channel,
           nickname = r.sender,
@@ -194,7 +217,8 @@ object ApiActor {
       Behaviors.same
     }
 
-    def validated(r: Validated): Behavior[Command] = {
+    def validated(r: Validated)(ctx: ActorContext[Command]): Behavior[Command] = {
+      ctx.log.info("validated token for {}", r.nick)
       val ls = listeners + (r.nick -> r.obs)
       behavior(loginActor, detailsActor, channelManager, ls)
     }
@@ -213,10 +237,10 @@ object ApiActor {
         listen(r, o)(ctx)
 
       // internal commands
-      case (_, r: Notify) =>
-        notify(r)
-      case (_, r: Validated) =>
-        validated(r)
+      case (ctx, r: Notify) =>
+        notify(r)(ctx)
+      case (ctx, r: Validated) =>
+        validated(r)(ctx)
     }
   }
 }

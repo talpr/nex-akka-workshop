@@ -23,8 +23,8 @@ object UserDetailsActor {
   final case class LoginUser(user: User, password: Password, replyTo: ActorRef[Result]) extends Command
 
   sealed trait Result
-  final case class Succeeded(user: User, nickname: Nickname) extends Result
-  final case class Failed(user: User)                        extends Result
+  final case class Succeeded(nickname: Nickname) extends Result
+  final case class Failed(user: User)            extends Result
 
   final case class State(users: Map[User, UserDetails] = Map.empty)
 
@@ -35,19 +35,29 @@ object UserDetailsActor {
     PersistentBehaviors.immutable("user-details-actor", State(), commandHandler, eventHandler)
 
   private val commandHandler: CommandHandler[Command, Event, State] = {
-    case (_, s, RegisterUser(det, to)) if s.users contains det.user =>
+    case (ctx, s, RegisterUser(det, to)) if s.users contains det.user =>
       Effect.none
-        .andThen(to ! Failed(det.user))
+        .andThen {
+          ctx.log.info("failed to register user {}. already exists.", det.user)
+          to ! Failed(det.user)
+        }
 
-    case (_, _, RegisterUser(det, to)) =>
+    case (ctx, _, RegisterUser(det, to)) =>
       Effect
         .persist(UserRegistered(det))
-        .andThen(to ! Succeeded(det.user, det.nickname))
+        .andThen {
+          ctx.log.info("registered new user {}", det.user)
+          to ! Succeeded(det.nickname)
+        }
 
-    case (_, s, LoginUser(user, pw, to)) =>
+    case (ctx, s, LoginUser(user, pw, to)) =>
       val resp = s.users.get(user).map(_.password) match {
-        case Some(`pw`) => Succeeded(user, s.users(user).nickname)
-        case _          => Failed(user)
+        case Some(`pw`) =>
+          ctx.log.info("user {} authenticated", user)
+          Succeeded(s.users(user).nickname)
+        case _          =>
+          ctx.log.info("user {} failed authentication", user)
+          Failed(user)
       }
       Effect.none
         .andThen(to ! resp)

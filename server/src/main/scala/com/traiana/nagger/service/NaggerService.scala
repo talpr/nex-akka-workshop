@@ -26,12 +26,7 @@ class NaggerService(@Autowired spring: ApplicationContext) extends NaggerGrpc.Na
     SpringApplication.exit(spring)
   }
 
-  val detailsActor = system.spawn(UserDetailsActor(), "user-details-actor")
-  val loginActor   = system.spawn(LoginActor(detailsActor), "login-actor")
-  val channelMgr   = system.spawn(ChannelManagerActor(), "channel-manager-actor")
-  val apiActor     = system.spawn(ApiActor(loginActor, detailsActor, channelMgr), "api-actor")
-
-  channelMgr ! ChannelManagerActor.setApiActor(apiActor)
+  val apiActor     = system.spawn(ApiActor(), "api-actor")
 
   override implicit val knownErrors: ErrorMapping = ErrorMapping(
     "registration-failed" -> io.grpc.Status.ALREADY_EXISTS,
