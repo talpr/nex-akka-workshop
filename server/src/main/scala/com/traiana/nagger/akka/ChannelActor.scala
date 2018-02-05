@@ -32,10 +32,11 @@ object ChannelActor {
   private def commandHandler(
     channel: Channel,
     channelMgr: ActorRef[ChannelManagerActor.Command]): CommandHandler[Command, Event, State] = {
-    case (_, s, Join(nick, to)) =>
+    case (ctx, s, Join(nick, to)) =>
       Effect
         .persist(UserJoined(nick))
         .andThen {
+          ctx.log.info("user {} joined channel", nick)
           to ! Done
           s.history.foreach { mp =>
             val m = ChannelManagerActor.notifyClients(Set(nick), channel, mp.nick, mp.when, mp.msg)
@@ -43,17 +44,21 @@ object ChannelActor {
           }
         }
 
-    case (_, _, Leave(nick, to)) =>
+    case (ctx, _, Leave(nick, to)) =>
       Effect
         .persist(UserLeft(nick))
-        .andThen(to ! Done)
+        .andThen {
+          ctx.log.info("user {} left channel", nick)
+          to ! Done
+        }
 
-    case (_, s, Message(nick, msg, to)) =>
+    case (ctx, s, Message(nick, msg, to)) =>
       val when = Instant.now()
       val m    = ChannelManagerActor.notifyClients(s.joined, channel, nick, when, msg)
       Effect
         .persist(MessagePosted(nick, msg, when))
         .andThen {
+          ctx.log.info("user {} posted message", nick)
           channelMgr ! m
           to ! Done
         }
