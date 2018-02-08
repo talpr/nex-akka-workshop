@@ -5,8 +5,9 @@ import java.time.Instant
 import akka.Done
 import akka.actor.Scheduler
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.scaladsl.{Behaviors, ActorContext}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior, Props}
+import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings}
 import akka.util.Timeout
 import com.google.protobuf.empty.Empty
 import Validators._
@@ -26,7 +27,7 @@ object ApiActor {
   def message(r: MessageRequest): ActorRef[Empty] => Command                   = Message(r, _)
   def listen(r: ListenRequest, o: StreamObserver[ListenEvent]): Command        = Listen(r, o)
 
-  def notify(to: Nickname, channel: Channel, sender: Nickname, when: Instant, message: String): Command =
+  def notify(to: Set[Nickname], channel: Channel, sender: Nickname, when: Instant, message: String): Command =
     Notify(to, channel, sender, when, message)
 
   private def succeeded(token: Token): LoginRegisterResponse =
@@ -44,7 +45,7 @@ object ApiActor {
   final case class Listen(r: ListenRequest, o: StreamObserver[ListenEvent]) extends Command
 
   final case class Notify(
-    to: Nickname,
+    to: Set[Nickname],
     channel: Channel,
     sender: Nickname,
     when: Instant,
@@ -59,9 +60,27 @@ object ApiActor {
 
   def apply(): Behavior[Command] =
     Behaviors.deferred { ctx =>
-      val detailsActor = ctx.spawn(UserDetailsActor(), "user-details-actor")
+      val singletonManager = ClusterSingleton(ctx.system)
+
+      val detailsActor = singletonManager.spawn(
+        UserDetailsActor(),
+        "user-details-actor",
+        Props.empty,
+        ClusterSingletonSettings(ctx.system),
+        UserDetailsActor.Stop
+      )
+
+      val channelMgr = singletonManager.spawn(
+        ChannelManagerActor(),
+        "channel-manager-actor",
+        Props.empty,
+        ClusterSingletonSettings(ctx.system),
+        ChannelManagerActor.Stop
+      )
+      channelMgr ! ChannelManagerActor.RegisterApiActor(ctx.self)
+
       val loginActor   = ctx.spawn(LoginActor(detailsActor), "login-actor")
-      val channelMgr   = ctx.spawn(ChannelManagerActor(ctx.self), "channel-manager-actor")
+
       behavior(loginActor, detailsActor, channelMgr)
     }
 
@@ -204,8 +223,7 @@ object ApiActor {
     }
 
     def notify(r: Notify)(ctx: ActorContext[Command]): Behavior[Command] = {
-      listeners.get(r.to).foreach { l =>
-        ctx.log.info("sending notification to {}", r.to)
+      r.to.flatMap(listeners.get).foreach { l =>
         val le = ListenEvent(
           channel = r.channel,
           nickname = r.sender,
@@ -214,6 +232,7 @@ object ApiActor {
         )
         l.onNext(le)
       }
+
       Behaviors.same
     }
 

@@ -21,6 +21,7 @@ object UserDetailsActor {
   sealed trait Command
   final case class RegisterUser(details: UserDetails, replyTo: ActorRef[Result])        extends Command
   final case class LoginUser(user: User, password: Password, replyTo: ActorRef[Result]) extends Command
+  final case object Stop                                                                extends Command
 
   sealed trait Result
   final case class Succeeded(nickname: Nickname) extends Result
@@ -55,12 +56,15 @@ object UserDetailsActor {
         case Some(`pw`) =>
           ctx.log.info("user {} authenticated", user)
           Succeeded(s.users(user).nickname)
-        case _          =>
+        case _ =>
           ctx.log.info("user {} failed authentication", user)
           Failed(user)
       }
       Effect.none
         .andThen(to ! resp)
+
+    case (_, _, Stop) =>
+      Effect.stop
   }
 
   private val eventHandler: (State, Event) => State = {

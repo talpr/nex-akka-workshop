@@ -7,7 +7,7 @@ import com.google.protobuf.empty.Empty
 import com.traiana.kit.boot.grpc.GrpcService
 import com.traiana.kit.machinery.interop
 import com.traiana.kit.machinery.interop.grpc.ErrorMapping
-import com.traiana.nagger.akka.{ApiActor, ChannelManagerActor, LoginActor, UserDetailsActor}
+import com.traiana.nagger.akka.ApiActor
 import com.traiana.nagger.spb._
 import io.grpc.ServerServiceDefinition
 import io.grpc.stub.StreamObserver

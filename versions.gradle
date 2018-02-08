@@ -1,7 +1,6 @@
 ext {
   ver = [
-      akka                    : '2.5.9',
-      akkaTyped               : '2.5-20180202-180000',
+      akka                    : '2.5-20180202-180000',
       akkaPersistenceCassandra: '0.59',
       akkaPersistenceInmemory : '2.5.1.1',
       akkaStreamKafka         : '0.18',

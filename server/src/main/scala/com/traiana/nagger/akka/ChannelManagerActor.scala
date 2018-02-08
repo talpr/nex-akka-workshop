@@ -3,10 +3,10 @@ package com.traiana.nagger.akka
 import java.time.Instant
 
 import akka.Done
-import akka.event.Logging
-import akka.actor.typed.scaladsl.{Behaviors, ActorContext}
-import akka.actor.typed.scaladsl.adapter._
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior, Props}
+import akka.cluster.sharding.typed.ClusterShardingSettings
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityTypeKey}
 import com.traiana.nagger.{Channel, Nickname}
 
 object ChannelManagerActor {
@@ -35,6 +35,8 @@ object ChannelManagerActor {
   final case class Join(nick: Nickname, channel: Channel, replyTo: ActorRef[Done])                 extends Command
   final case class Leave(nick: Nickname, channel: Channel, replyTo: ActorRef[Done])                extends Command
   final case class Message(nick: Nickname, channel: Channel, msg: String, replyTo: ActorRef[Done]) extends Command
+  final case class RegisterApiActor(apiActor: ActorRef[ApiActor.Command])                          extends Command
+  final case object Stop                                                                           extends Command
 
   private[akka] final case class NotifyClients(
     clients: Set[Nickname],
@@ -44,47 +46,49 @@ object ChannelManagerActor {
     msg: String
   ) extends Command
 
-  def apply(apiActor: ActorRef[ApiActor.Command]): Behavior[Command] = behavior(apiActor)
+  private val typeKey = EntityTypeKey[ChannelActor.Command]("ChannelActor")
 
-  private def behavior(
-    apiActor: ActorRef[ApiActor.Command],
-    channels: Map[Channel, ActorRef[ChannelActor.Command]] = Map.empty
-  ): Behavior[Command] = {
+  def apply(): Behavior[Command] =
+    Behaviors.deferred { ctx =>
+      val sharding = ClusterSharding(ctx.system)
+      val region = sharding.spawn(
+        behavior = ch => ChannelActor(ch, ctx.self),
+        props = Props.empty,
+        typeKey = typeKey,
+        settings = ClusterShardingSettings(ctx.system),
+        maxNumberOfShards = 10,
+        handOffStopMessage = ChannelActor.Stop
+      )
 
-    def withChannel(channel: Channel)(f: ActorRef[ChannelActor.Command] => Unit)(
-      implicit ctx: ActorContext[Command]
-    ): Behavior[Command] = {
-      channels.get(channel) match {
-        case Some(ch) =>
-          f(ch)
-          Behaviors.same
-        case None =>
-          ctx.log.info("spawning new channel {}", channel)
-          val ch    = ctx.spawn(ChannelActor(channel, ctx.self), s"channel-$channel")
-          val chans = channels + (channel -> ch)
-          f(ch)
-          behavior(apiActor, chans)
-      }
+      behavior(sharding, Set.empty)
     }
 
-    def join(r: Join)(implicit ctx: ActorContext[Command]): Behavior[Command] =
-      withChannel(r.channel) { ch =>
-        ch ! ChannelActor.join(r.nick, r.replyTo)
-      }
+  private def behavior(
+    sharding: ClusterSharding,
+    apiActors: Set[ActorRef[ApiActor.Command]]
+  ): Behavior[Command] = {
 
-    def leave(r: Leave)(implicit ctx: ActorContext[Command]): Behavior[Command] =
-      withChannel(r.channel) { ch =>
-        ch ! ChannelActor.leave(r.nick, r.replyTo)
-      }
+    def join(r: Join)(implicit ctx: ActorContext[Command]): Behavior[Command] = {
+      val ch = sharding.entityRefFor(typeKey, r.channel)
+      ch ! ChannelActor.join(r.nick, r.replyTo)
+      Behaviors.same
+    }
 
-    def message(r: Message)(implicit ctx: ActorContext[Command]): Behavior[Command] =
-      withChannel(r.channel) { ch =>
-        ch ! ChannelActor.message(r.nick, r.msg, r.replyTo)
-      }
+    def leave(r: Leave)(implicit ctx: ActorContext[Command]): Behavior[Command] = {
+      val ch = sharding.entityRefFor(typeKey, r.channel)
+      ch ! ChannelActor.leave(r.nick, r.replyTo)
+      Behaviors.same
+    }
+
+    def message(r: Message)(implicit ctx: ActorContext[Command]): Behavior[Command] = {
+      val ch = sharding.entityRefFor(typeKey, r.channel)
+      ch ! ChannelActor.message(r.nick, r.msg, r.replyTo)
+      Behaviors.same
+    }
 
     def notify(r: NotifyClients): Behavior[Command] = {
-      r.clients.foreach { nick =>
-        val m = ApiActor.notify(nick, r.channel, r.who, r.when, r.msg)
+      apiActors.foreach { apiActor =>
+        val m = ApiActor.notify(r.clients, r.channel, r.who, r.when, r.msg)
         apiActor ! m
       }
 
@@ -100,6 +104,10 @@ object ChannelManagerActor {
         message(r)(ctx)
       case (_, r: NotifyClients) =>
         notify(r)
+      case (_, r: RegisterApiActor) =>
+        behavior(sharding, apiActors + r.apiActor)
+      case (_, Stop) =>
+        Behaviors.stopped
     }
   }
 }

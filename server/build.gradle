@@ -14,6 +14,7 @@ apply plugin: 'com.diffplug.gradle.spotless'
 dependencies {
   protobuf project(':api')
 
+  compile "com.github.dnvriend:akka-persistence-inmemory_$ver.scalaBase:$ver.akkaPersistenceInmemory"
   compile "com.trueaccord.scalapb:scalapb-runtime_$ver.scalaBase:$ver.scalapb"
   compile "com.trueaccord.scalapb:scalapb-runtime-grpc_$ver.scalaBase:$ver.scalapb"
   compile "com.typesafe.akka:akka-actor_$ver.scalaBase:$ver.akka"
@@ -22,14 +23,15 @@ dependencies {
   compile "com.typesafe.akka:akka-cluster-tools_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-cluster_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-persistence-cassandra_$ver.scalaBase:$ver.akkaPersistenceCassandra"
-  compile "com.github.dnvriend:akka-persistence-inmemory_$ver.scalaBase:$ver.akkaPersistenceInmemory"
   compile "com.typesafe.akka:akka-persistence_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-persistence-query_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-slf4j_$ver.scalaBase:$ver.akka"
   compile "com.typesafe.akka:akka-stream-kafka_$ver.scalaBase:$ver.akkaStreamKafka"
   compile "com.typesafe.akka:akka-stream_$ver.scalaBase:$ver.akka"
-  compile "com.typesafe.akka:akka-actor-typed_$ver.scalaBase:$ver.akkaTyped"
-  compile "com.typesafe.akka:akka-persistence-typed_$ver.scalaBase:$ver.akkaTyped"
+  compile "com.typesafe.akka:akka-actor-typed_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-cluster-typed_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-cluster-sharding-typed_$ver.scalaBase:$ver.akka"
+  compile "com.typesafe.akka:akka-persistence-typed_$ver.scalaBase:$ver.akka"
   compile "com.traiana.kit:machinery-interop_$ver.scalaBase:$ver.machinery"
   compile "com.traiana.kit:spring-boot-starter-grpc_$ver.scalaBase:$ver.kitLibs"
 

@@ -14,6 +14,7 @@ object ChannelActor {
   final case class Join(nick: Nickname, replyTo: ActorRef[Done])                 extends Command
   final case class Leave(nick: Nickname, replyTo: ActorRef[Done])                extends Command
   final case class Message(nick: Nickname, msg: String, replyTo: ActorRef[Done]) extends Command
+  final case object Stop                                                         extends Command
 
   def join(nick: Nickname, replyTo: ActorRef[Done]): Command                 = Join(nick, replyTo)
   def leave(nick: Nickname, replyTo: ActorRef[Done]): Command                = Leave(nick, replyTo)
@@ -62,6 +63,9 @@ object ChannelActor {
           channelMgr ! m
           to ! Done
         }
+
+    case (_, _, Stop) =>
+      Effect.stop
   }
 
   private val eventHandler: (State, Event) => State = {
