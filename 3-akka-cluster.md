@@ -20,7 +20,7 @@ Solution Walk-through:
 * Try it out again. This seems to work, but there is actually a bug. Can you spot it?
 * We now have multiple `ChannelManagerActor`s and `ApiActor`s, but they each only know the actor on the same node as
     them. Solving this issue well is not straight-forward, so for now let's just change the `ChannelManagerActor` to a
-    singleton. The `ChannelManagerActor` will now have to keep a mapping of nicknames to `ApiActor` references.
+    singleton. The `ChannelManagerActor` will now have to keep a set of `ApiActor` references.
     Note that this solution is problematic since, unlike the `UserDetailsActor`, the `ChannelManagerActor` is involved
     in all messages, creating a bottleneck. As a bonus, try solving this "properly". 
 * You guessed it - check that everything works.
