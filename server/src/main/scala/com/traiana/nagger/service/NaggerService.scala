@@ -26,7 +26,7 @@ class NaggerService(@Autowired spring: ApplicationContext) extends NaggerGrpc.Na
     SpringApplication.exit(spring)
   }
 
-  val apiActor     = system.spawn(ApiActor(), "api-actor")
+  val apiActor = system.spawn(ApiActor(), "api-actor")
 
   override implicit val knownErrors: ErrorMapping = ErrorMapping(
     "registration-failed" -> io.grpc.Status.ALREADY_EXISTS,

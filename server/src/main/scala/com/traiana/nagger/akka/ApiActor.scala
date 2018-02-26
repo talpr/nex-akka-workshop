@@ -8,6 +8,8 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Props}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings}
+import akka.cluster.sharding.typed.ClusterShardingSettings
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
 import com.google.protobuf.empty.Empty
 import Validators._
@@ -59,7 +61,7 @@ object ApiActor {
   case object InvalidToken       extends ApiError("invalid-token")
 
   def apply(): Behavior[Command] =
-    Behaviors.deferred { ctx =>
+    Behaviors.setup { ctx =>
       val singletonManager = ClusterSingleton(ctx.system)
 
       val detailsActor = singletonManager.spawn(
@@ -79,7 +81,17 @@ object ApiActor {
       )
       channelMgr ! ChannelManagerActor.RegisterApiActor(ctx.self)
 
-      val loginActor   = ctx.spawn(LoginActor(detailsActor), "login-actor")
+      val loginActor = ctx.spawn(LoginActor(detailsActor), "login-actor")
+
+      val sharding = ClusterSharding(ctx.system)
+      val region = sharding.spawn(
+        behavior = ch => ChannelActor(ch, channelMgr),
+        props = Props.empty,
+        typeKey = ChannelActor.shardingTypeKey,
+        settings = ClusterShardingSettings(ctx.system),
+        maxNumberOfShards = 10,
+        handOffStopMessage = ChannelActor.Stop
+      )
 
       behavior(loginActor, detailsActor, channelMgr)
     }
@@ -136,7 +148,7 @@ object ApiActor {
         case Success(token) =>
           ctx.log.info("{} registered successfully", req.username)
           replyTo ! succeeded(token)
-        case Failure(t)     =>
+        case Failure(t) =>
           ctx.log.info("{} failed to register", req.username)
           replyTo ! failed(t.getMessage)
       }
@@ -157,7 +169,7 @@ object ApiActor {
         case Success(token) =>
           ctx.log.info("{} logged in successfully", req.username)
           replyTo ! succeeded(token)
-        case Failure(t)     =>
+        case Failure(t) =>
           ctx.log.info("{} failed to log in", req.username)
           replyTo ! failed(t.getMessage)
       }

@@ -4,6 +4,7 @@ import java.time.Instant
 
 import akka.Done
 import akka.actor.typed.{ActorRef, Behavior}
+import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.persistence.typed.scaladsl.PersistentBehaviors
 import akka.persistence.typed.scaladsl.PersistentBehaviors.{CommandHandler, Effect}
 import com.traiana.nagger.{Channel, Nickname}
@@ -26,6 +27,8 @@ object ChannelActor {
   final case class UserJoined(nick: Nickname)                                extends Event
   final case class UserLeft(nick: Nickname)                                  extends Event
   final case class MessagePosted(nick: Nickname, msg: String, when: Instant) extends Event
+
+  val shardingTypeKey = EntityTypeKey[ChannelActor.Command]("ChannelActor")
 
   def apply(name: Channel, channelMgr: ActorRef[ChannelManagerActor.Command]): Behavior[Command] =
     PersistentBehaviors.immutable(s"channel-actor-$name", State(), commandHandler(name, channelMgr), eventHandler)

@@ -4,9 +4,8 @@ import java.time.Instant
 
 import akka.Done
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior, Props}
-import akka.cluster.sharding.typed.ClusterShardingSettings
-import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityTypeKey}
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.traiana.nagger.{Channel, Nickname}
 
 object ChannelManagerActor {
@@ -46,20 +45,9 @@ object ChannelManagerActor {
     msg: String
   ) extends Command
 
-  private val typeKey = EntityTypeKey[ChannelActor.Command]("ChannelActor")
-
   def apply(): Behavior[Command] =
-    Behaviors.deferred { ctx =>
+    Behaviors.setup { ctx =>
       val sharding = ClusterSharding(ctx.system)
-      val region = sharding.spawn(
-        behavior = ch => ChannelActor(ch, ctx.self),
-        props = Props.empty,
-        typeKey = typeKey,
-        settings = ClusterShardingSettings(ctx.system),
-        maxNumberOfShards = 10,
-        handOffStopMessage = ChannelActor.Stop
-      )
-
       behavior(sharding, Set.empty)
     }
 
@@ -69,19 +57,19 @@ object ChannelManagerActor {
   ): Behavior[Command] = {
 
     def join(r: Join)(implicit ctx: ActorContext[Command]): Behavior[Command] = {
-      val ch = sharding.entityRefFor(typeKey, r.channel)
+      val ch = sharding.entityRefFor(ChannelActor.shardingTypeKey, r.channel)
       ch ! ChannelActor.join(r.nick, r.replyTo)
       Behaviors.same
     }
 
     def leave(r: Leave)(implicit ctx: ActorContext[Command]): Behavior[Command] = {
-      val ch = sharding.entityRefFor(typeKey, r.channel)
+      val ch = sharding.entityRefFor(ChannelActor.shardingTypeKey, r.channel)
       ch ! ChannelActor.leave(r.nick, r.replyTo)
       Behaviors.same
     }
 
     def message(r: Message)(implicit ctx: ActorContext[Command]): Behavior[Command] = {
-      val ch = sharding.entityRefFor(typeKey, r.channel)
+      val ch = sharding.entityRefFor(ChannelActor.shardingTypeKey, r.channel)
       ch ! ChannelActor.message(r.nick, r.msg, r.replyTo)
       Behaviors.same
     }
